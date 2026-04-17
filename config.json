@@ -1,0 +1,22 @@
+{
+  "username": "",
+  "password": "",
+  "isp_suffix": "@cmccn",
+  "isp_suffix_options": [
+    "@cmccn",
+    "@unicomn",
+    "@telecomn"
+  ],
+  "portal_host": "portal.csu.edu.cn:802",
+  "online_check_url": "http://www.baidu.com",
+  "test_timeout": 5,
+  "login_timeout": 10,
+  "check_interval": 10,
+  "retry_interval": 30,
+  "preferred_ip_prefix": "100.",
+  "allowed_ssids": [
+    "CSU-Student",
+    "CSU-WIFI"
+  ],
+  "hide_console": true
+}
