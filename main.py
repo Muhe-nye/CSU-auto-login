@@ -414,6 +414,21 @@ def parse_jsonp(text: str) -> dict:
         return {"raw": text}
 
 
+def is_login_success(parsed: dict, raw_text: str) -> bool:
+    result = parsed.get("result")
+    ret_code = parsed.get("ret_code")
+    msg = str(parsed.get("msg", "")).strip()
+
+    success_messages = {"Portal协议认证成功！", "认证成功", "登录成功"}
+    if result == 1:
+        return True
+    if ret_code == 0 and (not msg or msg in success_messages):
+        return True
+
+    raw_lower = raw_text.lower()
+    return "success" in raw_lower and "error" not in raw_lower
+
+
 def create_session() -> requests.Session:
     session = requests.Session()
     session.headers.update(
@@ -451,7 +466,7 @@ def login(session: requests.Session, local_ip: str) -> bool:
         parsed = parse_jsonp(login_response.text)
         logging.info("login 响应: %s", parsed)
 
-        if login_response.ok and "error" not in login_response.text.lower():
+        if login_response.ok and is_login_success(parsed, login_response.text):
             time.sleep(3)
             return True
 
