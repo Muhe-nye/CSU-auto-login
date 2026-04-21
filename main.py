@@ -10,7 +10,6 @@ import json
 import locale
 import logging
 import re
-import socket
 import subprocess
 import sys
 import time
@@ -26,6 +25,7 @@ else:
 
 CONFIG_PATH = BASE_DIR / "config.json"
 LOG_PATH = BASE_DIR / "autologin.log"
+SINGLE_INSTANCE_NAME = "Global\\CSUAutoLoginSingleton"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -80,6 +80,8 @@ SUBPROCESS_KWARGS = {}
 if sys.platform == "win32":
     SUBPROCESS_KWARGS["creationflags"] = subprocess.CREATE_NO_WINDOW
 
+mutex_handle = None
+
 
 def hide_console_window() -> None:
     if sys.platform != "win32":
@@ -99,6 +101,31 @@ def show_message_box(title: str, message: str, flags: int = 0x10) -> None:
         ctypes.windll.user32.MessageBoxW(0, message, title, flags)
     except Exception:
         logging.debug("弹窗提示失败", exc_info=True)
+
+
+def acquire_single_instance() -> bool:
+    global mutex_handle
+    if sys.platform != "win32":
+        return True
+
+    mutex_handle = ctypes.windll.kernel32.CreateMutexW(None, False, SINGLE_INSTANCE_NAME)
+    if not mutex_handle:
+        raise RuntimeError("无法创建单实例锁。")
+
+    ERROR_ALREADY_EXISTS = 183
+    if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+        return False
+    return True
+
+
+def release_single_instance() -> None:
+    global mutex_handle
+    if sys.platform != "win32" or not mutex_handle:
+        return
+
+    ctypes.windll.kernel32.ReleaseMutex(mutex_handle)
+    ctypes.windll.kernel32.CloseHandle(mutex_handle)
+    mutex_handle = None
 
 
 def ensure_config_exists() -> None:
@@ -466,6 +493,10 @@ def main_loop() -> None:
 
 if __name__ == "__main__":
     try:
+        if not acquire_single_instance():
+            logging.info("程序已在运行，跳过重复启动")
+            raise SystemExit(0)
+
         loaded_config = load_config()
         apply_config(loaded_config)
 
@@ -478,3 +509,5 @@ if __name__ == "__main__":
         logging.exception("程序启动失败")
         show_message_box("CSU Auto Login", str(exc))
         raise SystemExit(1)
+    finally:
+        release_single_instance()
